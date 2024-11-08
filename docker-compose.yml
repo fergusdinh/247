@@ -1,0 +1,134 @@
+## Mark Shust's Docker Configuration for Magento
+## (https://github.com/markshust/docker-magento)
+##
+## Version 42.0.0
+
+## To use SSH, see https://github.com/markshust/docker-magento#ssh
+## Linux users, see https://github.com/markshust/docker-magento#linux
+
+## If you changed the default Docker network, you may need to replace
+## 172.17.0.1 in this file with the result of:
+## docker network inspect bridge --format='{{(index .IPAM.Config 0).Gateway}}'
+
+version: "3"
+
+services:
+  app:
+    image: markoshust/magento-nginx:1.18-7
+    ports:
+      - "80:8000"
+      - "443:8443"
+    volumes: &appvolumes
+      - ~/.composer:/var/www/.composer:cached
+      - ~/.ssh/id_rsa:/var/www/.ssh/id_rsa:cached
+      - ~/.ssh/known_hosts:/var/www/.ssh/known_hosts:cached
+      - appdata:/var/www/html
+      - sockdata:/sock
+      - ssldata:/etc/nginx/certs
+    extra_hosts: &appextrahosts
+      ## M1 Mac support to fix Docker delay, see #566
+      # - "app:172.17.0.1"
+      # - "phpfpm:172.17.0.1"
+      # - "db:172.17.0.1"
+      # - "redis:172.17.0.1"
+      # - "elasticsearch:172.17.0.1"
+      # - "rabbitmq:172.17.0.1"
+      ## Selenium support, replace "magento.test" with URL of your site
+      - "magento.test:172.17.0.1"
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.headless-magento.rule=Host(`headless-magento.bavaan.com`)"
+    #   - "traefik.http.routers.headless-magento.entrypoints=web"
+    #   - "traefik.http.routers.headless-magento.middlewares=redirect-to-https@docker"
+    #   - "traefik.http.routers.headless-magento-secure.rule=Host(`headless-magento.bavaan.com`)"
+    #   - "traefik.http.routers.headless-magento-secure.entrypoints=websecure"
+    #   - "traefik.http.services.headless-magento.loadbalancer.server.port=8443"
+    #   - "traefik.http.services.headless-magento.loadbalancer.server.scheme=https"
+    #   - "traefik.http.routers.headless-magento-secure.tls.certresolver=http"
+    #   - "traefik.http.routers.headless-magento-secure.service=headless-magento"
+    #   - "traefik.http.routers.headless-magento-secure.tls=true"
+    #   - "traefik.http.middlewares.headless-magento-auth.forwardauth.tls.insecureSkipVerify=true"
+
+  phpfpm:
+    image: markoshust/magento-php:8.2-fpm-0
+    volumes: *appvolumes
+    environment:
+      PHP_IDE_CONFIG: serverName=localhost
+    env_file: env/phpfpm.env
+    extra_hosts:
+      - "host.docker.internal:172.17.0.1"
+
+  db:
+    image: mariadb:10.4
+    command: --max_allowed_packet=64M
+    ports:
+      - "3306:3306"
+    env_file: env/db.env
+    volumes:
+      - ./db:/var/db
+    extra_hosts: *appextrahosts
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - 88:80
+    depends_on:
+      - db
+
+  redis:
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+
+  elasticsearch:
+    image: markoshust/magento-elasticsearch:7.16-0
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - "discovery.type=single-node"
+      ## Set custom heap size to avoid memory errors
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      ## Avoid test failures due to small disks
+      ## More info at https://github.com/markshust/docker-magento/issues/488
+      - "cluster.routing.allocation.disk.threshold_enabled=false"
+      - "index.blocks.read_only_allow_delete"
+    extra_hosts: *appextrahosts
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "8025:8025"  # Web UI
+      - "1025:1025"  # SMTP server
+      
+  rabbitmq:
+    image: markoshust/magento-rabbitmq:3.9-0
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    env_file: env/rabbitmq.env
+    extra_hosts: *appextrahosts
+
+  ## Blackfire support, uncomment to enable
+  #blackfire:
+  #  image: blackfire/blackfire:2
+  #  ports:
+  #    - "8307"
+  #  env_file: env/blackfire.env
+
+  ## Selenium support, uncomment to enable
+  #selenium:
+  #  image: selenium/standalone-chrome-debug:3.8.1
+  #  ports:
+  #    - "5900:5900"
+  #  extra_hosts: *appextrahosts
+
+volumes:
+  appdata:
+  dbdata:
+  rabbitmqdata:
+  sockdata:
+  ssldata:

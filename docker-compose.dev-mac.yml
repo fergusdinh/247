@@ -1,0 +1,20 @@
+version: "3"
+
+services:
+  app:
+    volumes: &appvolumes
+      ## Host mounts with performance penalty, only put what is necessary here
+      - ./magento/app/code:/var/www/html/app/code:cached
+      - ./magento/app/design:/var/www/html/app/design:cached
+      - ./magento/app/etc:/var/www/html/app/etc:cached
+      - ./magento/composer.json:/var/www/html/composer.json:cached
+      - ./magento/composer.lock:/var/www/html/composer.lock:cached
+      - ./magento/nginx.conf.sample:/var/www/html/nginx.conf:cached
+      #- ./magento/auth.json:/var/www/html/auth.json:cached
+      #- ./magento/m2-hotfixes:/var/www/html/m2-hotfixes:cached
+      #- ./magento/patches:/var/www/html/patches:cached
+      #- ./magento/var/log:/var/www/html/var/log:cached
+      #- ./magento/var/report:/var/www/html/var/report:cached
+
+  phpfpm:
+    volumes: *appvolumes

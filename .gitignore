@@ -1,20 +1,10 @@
 # Created by .ignore support plugin (hsz.mobi)
 .idea
 *.iml
-bin
 bk
-env
 src2
 src
-template
-docker-compose.yml
-docker-compose.dev.yml
-docker-compose.dev-ssh.yml
-docker-compose.dev-mac.yml
-/magento/dev
-Makefile
 README. txt
-rootCA.pem
 magento/auth.json.sample
 magento/nginx.conf
 magento/pub/media/magefan_blog
